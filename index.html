@@ -1,2130 +1,315 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { BookOpen, CheckCircle, XCircle, RotateCcw, Award, Play, Check, Star, Home, Bookmark, List, Grid } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>软件项目管理练习系统</title>
+    <!-- 基础样式与库加载：使用 CDN 确保在任何环境下都能运行 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
+        .animate-in { animation: fadeIn 0.3s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        button:active { transform: scale(0.97); }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-slate-50">
+    <div id="root"></div>
 
-// --- COMPONENTS ---
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
 
-const Card = ({ children, className }) => {
-  return (
-    <div className={className}>
-      {children}
-    </div>
-  );
-};
+        // --- 稳定版内置图标 ---
+        const IconBook = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>;
+        const IconPlay = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>;
+        const IconStar = ({ filled }) => <svg width="24" height="24" viewBox="0 0 24 24" fill={filled ? "#fbbf24" : "none"} stroke={filled ? "#fbbf24" : "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>;
+        const IconHome = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>;
+        const IconAward = () => <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>;
+        const IconCheck = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>;
+        const IconX = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
+        const IconList = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>;
 
-// --- DATA SOURCE ---
-// Extracted from "软件项目管理第1-16章课后练习及答案（1.2版本）.pdf"
-const RAW_QUESTIONS_SOURCE = [
-  // --- 第一章 ---
-  {
-    chapter: "第一章",
-    type: "judgment",
-    question: "搬家属于项目。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第一章",
-    type: "judgment",
-    question: "项目是为了创造唯一的产品或提供唯一的服务而进行的永久性的努力。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第一章",
-    type: "judgment",
-    question: "过程管理的目的是要让过程能够被共享、复用,并得到持续的改进。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第一章",
-    type: "judgment",
-    question: "项目具有临时性的特征。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第一章",
-    type: "judgment",
-    question: "日常运作存在大量的变更管理,而项目基本保持连贯性。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第一章",
-    type: "judgment",
-    question: "项目开发过程中可以无限制地使用资源。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第一章",
-    type: "judgment",
-    question: "相比于传统开发的预测性过程,敏捷开发属于自适应过程。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第一章",
-    type: "single",
-    question: "下列选项中不是项目与日常运作的区别的是( )。",
-    options: [
-      "项目是以目标为导向的,日常运作是通过效率和有效性体现的",
-      "项目是通过项目经理及其团队的工作完成的,而日常运作是职能式的线性管理",
-      "项目需要有专业知识的人来完成,而日常运作的完成不需要特定专业知识",
-      "项目是一次性的,日常运作是重复进行的"
-    ],
-    answer: "项目需要有专业知识的人来完成,而日常运作的完成不需要特定专业知识"
-  },
-  {
-    chapter: "第一章",
-    type: "single",
-    question: "以下都是日常运作和项目的共同之处,除了( )。",
-    options: [
-      "由人来做",
-      "受制于有限的资源",
-      "需要规划、执行和控制",
-      "都是重复性工作"
-    ],
-    answer: "都是重复性工作"
-  },
-  {
-    chapter: "第一章",
-    type: "single",
-    question: "下面哪一项不是《PMBOK指南》(第6版)中的知识领域?( )",
-    options: ["招聘管理", "质量管理", "范围管理", "风险管理"],
-    answer: "招聘管理"
-  },
-  {
-    chapter: "第一章",
-    type: "single",
-    question: "下列选项中属于项目的是( )。",
-    options: ["上课", "社区保安", "野餐活动", "每天的卫生保洁"],
-    answer: "野餐活动"
-  },
-  {
-    chapter: "第一章",
-    type: "single",
-    question: "下列选项中正确的是( )。",
-    options: [
-      "一个项目具有明确的目标而且周期不限",
-      "一个项目一旦确定就不会发生变更",
-      "每个项目都有自己的独特性",
-      "项目都是一次性的并由项目经理独自完成"
-    ],
-    answer: "每个项目都有自己的独特性"
-  },
-  {
-    chapter: "第一章",
-    type: "single",
-    question: "( )是为了创造唯一的产品或提供唯一的服务而进行的临时性的努力。",
-    options: ["过程", "项目", "项目群", "组合"],
-    answer: "项目"
-  },
-  {
-    chapter: "第一章",
-    type: "single",
-    question: "下面哪一项不是“敏捷宣言”中的内容?( )",
-    options: [
-      "个体和交互胜过过程和工具",
-      "可以工作的软件胜过面面俱到的文档",
-      "敏捷开发过程是自适应的过程",
-      "响应变化胜过遵循计划"
-    ],
-    answer: "敏捷开发过程是自适应的过程"
-  },
-  {
-    chapter: "第一章",
-    type: "single",
-    question: "下列活动中不是项目的是( )。",
-    options: ["野餐活动", "集体婚礼", "上课", "开发操作系统"],
-    answer: "上课"
-  },
-  {
-    chapter: "第一章",
-    type: "single",
-    question: "下列选项中不是项目特征的是( )。",
-    options: ["项目具有明确的目标", "项目具有限定的周期", "项目可以重复进行", "项目对资源成本具有约束性"],
-    answer: "项目可以重复进行"
-  },
-
-  // --- 第二章 ---
-  {
-    chapter: "第二章",
-    type: "judgment",
-    question: "项目立项可以确立项目目标、时间和资源成本,同时得到项目发起人的认可。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第二章",
-    type: "judgment",
-    question: "项目招标对于一个项目的开发是必需的,即便项目是内部项目。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第二章",
-    type: "judgment",
-    question: "自主开发相当于自制-购买决策中的自制。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第二章",
-    type: "judgment",
-    question: "项目标书是项目计划阶段开发的文档。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第二章",
-    type: "judgment",
-    question: "项目立项需要获得项目经理的认可,但不需要项目发起人的认可。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第二章",
-    type: "judgment",
-    question: "项目章程是项目执行组织高层批准的确认项目存在的文件,其中不包括对项目经理的授权。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第二章",
-    type: "judgment",
-    question: "乙方即供方(有时也称为卖方)是为顾客提供产品或服务的一方。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第二章",
-    type: "judgment",
-    question: "在软件项目合同中,甲方是需方,乙方是供方。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第二章",
-    type: "judgment",
-    question: "敏捷项目强调仆人式的管理方式。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第二章",
-    type: "single",
-    question: "下列不是项目立项过程内容的是( )。",
-    options: ["项目的目标", "项目的风险", "项目的时间表", "项目使用的资源和经费"],
-    answer: "项目的风险"
-  },
-  {
-    chapter: "第二章",
-    type: "single",
-    question: "以下哪一项不包括在项目章程中?( )",
-    options: ["对项目的确认", "对项目经理的授权", "对项目风险的分析", "项目目标的概述"],
-    answer: "对项目风险的分析"
-  },
-  {
-    chapter: "第二章",
-    type: "single",
-    question: "项目建议书是( )阶段开发的文档。",
-    options: ["项目执行", "项目结尾", "项目初始", "项目计划"],
-    answer: "项目初始"
-  },
-  {
-    chapter: "第二章",
-    type: "single",
-    question: "下列不属于甲方招投标阶段任务的是( )。",
-    options: ["编写建议书", "招标书定义", "供方选择", "合同签署"],
-    answer: "编写建议书"
-  },
-  {
-    chapter: "第二章",
-    type: "single",
-    question: "某软件公司准备投标某项目...请计算NPV。(此题为计算题,选项为:24.05万元, 20万元, 75.97万元, 16.917万元)",
-    options: ["24.05万元", "20万元", "75.97万元", "16.917万元"],
-    answer: "16.917万元"
-  },
-  {
-    chapter: "第二章",
-    type: "single",
-    question: "PMI人才三角不包括下面哪一项?( )",
-    options: ["技术项目管理", "测试能力", "领导力", "战略和商务管理"],
-    answer: "测试能力"
-  },
-
-  // --- 第三章 ---
-  {
-    chapter: "第三章",
-    type: "judgment",
-    question: "瀑布模型不适合短期项目。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第三章",
-    type: "judgment",
-    question: "增量式模型可以避免一次性投资太多带来的风险。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第三章",
-    type: "judgment",
-    question: "V模型适合的项目类型是需求很明确、解决方案很明确而且对系统的性能要求比较严格的项目。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第三章",
-    type: "judgment",
-    question: "瀑布模型和V模型都属于预测模型。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第三章",
-    type: "judgment",
-    question: "在瀑布生存期模型中,要求项目所有的活动都严格按照顺序执行,一个阶段的输出是下一个阶段的输入。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第三章",
-    type: "judgment",
-    question: "极限编程(XP)从三个层面提供了13个敏捷实践。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第三章",
-    type: "judgment",
-    question: "敏捷包括了《敏捷宣言》中的4个核心价值、12个原则,以及一些通用实践等。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第三章",
-    type: "single",
-    question: "对于某项目,甲方提供了详细、准确的需求文档...且安全性要求非常严格,此项目采用( )生存期模型比较合适。",
-    options: ["瀑布模型", "增量式模型", "V模型", "XP 模型"],
-    answer: "V模型"
-  },
-  {
-    chapter: "第三章",
-    type: "single",
-    question: "下面哪一项属于预测型生存期模型?( )",
-    options: ["瀑布模型", "增量模型", "Scrum 模型", "原型模型"],
-    answer: "瀑布模型"
-  },
-  {
-    chapter: "第三章",
-    type: "single",
-    question: "下面关于敏捷模型描述不正确的是哪一项?( )",
-    options: [
-      "与传统模型相比,敏捷模型属于自适应过程",
-      "可以应对需求的不断变化",
-      "Scrum 模型、XP模型、DevOps模型等都属于敏捷模型",
-      "敏捷模型是预测型和迭代型的混合模型"
-    ],
-    answer: "敏捷模型是预测型和迭代型的混合模型"
-  },
-  {
-    chapter: "第三章",
-    type: "single",
-    question: "XP 模型的实践原则不包括以下哪一项?( )",
-    options: ["快速反馈", "假设简单", "包容变化", "详细设计"],
-    answer: "详细设计"
-  },
-  {
-    chapter: "第三章",
-    type: "single",
-    question: "项目初期,在一个项目需求不明确的情况下,应避免采用以下哪种生存期模型?( )",
-    options: ["快速原型模型", "增量式模型", "V模型", "Scrum 模型"],
-    answer: "V模型"
-  },
-  {
-    chapter: "第三章",
-    type: "single",
-    question: "下面哪一个不是规模化敏捷模型?( )",
-    options: ["SAFe", "Scrum", "Scrum of Scrums(SOS)", "LeSS"],
-    answer: "Scrum"
-  },
-
-  // --- 第四章 ---
-  {
-    chapter: "第四章",
-    type: "judgment",
-    question: "需求规约说明可以包括系统的运行环境。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第四章",
-    type: "judgment",
-    question: "数据流分析方法是一种自下而上逐步求精的分析方法。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第四章",
-    type: "judgment",
-    question: "需求分析工作完成的一个基本标志是形成了一份完整的、规范的需求规约。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第四章",
-    type: "judgment",
-    question: "需求是指用户对软件的功能和性能的要求。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第四章",
-    type: "judgment",
-    question: "Story 常常写在卡片上,称为Story cards, 部署到墙上,称为Story Wall。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第四章",
-    type: "judgment",
-    question: "软件项目系统的响应时间属于功能性需求。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第四章",
-    type: "judgment",
-    question: "用户故事地图可以将 backlog变成一张二维地图。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第四章",
-    type: "single",
-    question: "下列不属于软件项目需求管理过程的是( )。",
-    options: ["需求获取", "需求分析", "需求规约编写", "需求更新"],
-    answer: "需求更新"
-  },
-  {
-    chapter: "第四章",
-    type: "single",
-    question: "用户故事 INVEST准则中“S”的含义是( )。",
-    options: ["独立的", "足够小", "可估计的", "可测试的"],
-    answer: "足够小"
-  },
-  {
-    chapter: "第四章",
-    type: "single",
-    question: "下列不属于UML需求视图的是( )。",
-    options: ["甘特图", "用例图", "状态图", "顺序图"],
-    answer: "甘特图"
-  },
-  {
-    chapter: "第四章",
-    type: "single",
-    question: "下列关于用户故事描述不正确的是哪一项?( )",
-    options: ["英文名称:User Story", "不使用技术语言来描述", "可以描述敏捷需求", "一种数据结构"],
-    answer: "一种数据结构"
-  },
-  {
-    chapter: "第四章",
-    type: "single",
-    question: "( )是软件项目的一个突出特点,可以导致软件项目的蔓延。",
-    options: ["需求变更", "暂时性", "阶段性", "约束性"],
-    answer: "需求变更"
-  },
-  {
-    chapter: "第四章",
-    type: "single",
-    question: "下列不属于结构化分析技术的是( )。",
-    options: ["数据流图", "数据字典", "系统流程图", "用例图"],
-    answer: "用例图"
-  },
-  {
-    chapter: "第四章",
-    type: "single",
-    question: "下列不属于软件需求范畴的是( )。",
-    options: ["软件项目采用什么样的实现技术", "用户希望软件能做什么样的事情", "用户希望软件完成什么样的功能", "用户希望软件达到什么样的性能"],
-    answer: "软件项目采用什么样的实现技术"
-  },
-  {
-    chapter: "第四章",
-    type: "single",
-    question: "敏捷项目需求—般采用下面哪一项进行描述?( )",
-    options: ["用例", "DFD图", "用户故事", "数据字典"],
-    answer: "用户故事"
-  },
-
-  // --- 第五章 ---
-  {
-    chapter: "第五章",
-    type: "judgment",
-    question: "WBS 提供了项目范围基线。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第五章",
-    type: "judgment",
-    question: "一个工作包可以分配给另外一个项目经理去完成。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第五章",
-    type: "judgment",
-    question: "如果开发人员对项目比较熟悉...开发WBS时最好采用自底向上方法。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第五章",
-    type: "judgment",
-    question: "对于一个没有做过的项目,开发WBS时可以采用自底向上方法。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第五章",
-    type: "judgment",
-    question: "在工作分解结果中,最底层的要素必须是实现项目目标的充分必要条件。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第五章",
-    type: "judgment",
-    question: "一个工作包应当由唯一主体负责。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第五章",
-    type: "judgment",
-    question: "WBS的最高层次的可交付成果是工作包。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第五章",
-    type: "judgment",
-    question: "对任务的分解只能是自上而下的。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第五章",
-    type: "judgment",
-    question: "WBS 的最底层任务是能分配到一个人完成的任务。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第五章",
-    type: "judgment",
-    question: "敏捷项目的一个epic还可以继续分解为一些用户故事。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第五章",
-    type: "single",
-    question: "WBS 之所以重要有以下原因,除了( )。",
-    options: ["确定项目范围基准", "防止遗漏工作", "为项目估算提供依据", "确定项目经理"],
-    answer: "确定项目经理"
-  },
-  {
-    chapter: "第五章",
-    type: "single",
-    question: "WBS 中的每一个具体细目通常都指定唯一的( )。",
-    options: ["编码", "地点", "功能模块", "提交截至期限"],
-    answer: "编码"
-  },
-  {
-    chapter: "第五章",
-    type: "single",
-    question: "下列不是创建 WBS的方法的是( )。",
-    options: ["自顶向下", "自底向上", "控制方法", "模板参照"],
-    answer: "控制方法"
-  },
-  {
-    chapter: "第五章",
-    type: "single",
-    question: "工作分解时,( )方法从特殊到一般的方向进行...",
-    options: ["模板参照", "自顶向下", "类比", "自底向上"],
-    answer: "自底向上"
-  },
-  {
-    chapter: "第五章",
-    type: "single",
-    question: "下列关于 WBS的说法,不正确的是( )。",
-    options: [
-      "WBS是工作分解的结果",
-      "不包括在 WBS中的工作就不是该项目的工作",
-      "可以采用提纲式或者组织结构图形式表示 WBS的结果",
-      "如果项目是一个崭新的项目,最好采用自顶向下方法开发WBS"
-    ],
-    answer: "如果项目是一个崭新的项目,最好采用自顶向下方法开发WBS"
-  },
-  {
-    chapter: "第五章",
-    type: "single",
-    question: "检验 WBS 分解结果的标准不包括以下哪一点?( )",
-    options: ["最底层的要素是否是实现目标的充分必要条件", "分解的层次不少于3层", "最底层元素是否有重复", "最底层要素是否有清晰完整定义"],
-    answer: "分解的层次不少于3层"
-  },
-  {
-    chapter: "第五章",
-    type: "single",
-    question: "WBS 是对项目由粗到细的分解过程,它的结构是( )。",
-    options: ["分层的集合结构", "分级的树形结构", "分层的线性结构", "分级的图状结构"],
-    answer: "分级的树形结构"
-  },
-  {
-    chapter: "第五章",
-    type: "single",
-    question: "工作分解时,( )方法从一般到特殊的方向进行...",
-    options: ["模板参照", "自顶向下", "类比", "自底向上"],
-    answer: "自顶向下"
-  },
-
-  // --- 第六章 ---
-  {
-    chapter: "第六章",
-    type: "judgment",
-    question: "故事点估算是一个相对的估算过程。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第六章",
-    type: "judgment",
-    question: "在软件项目估算中,估算结果是准确的没有误差的。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第六章",
-    type: "judgment",
-    question: "对于内部逻辑文件和外部接口文件来说,记录元素类型(RET)和数据元素类型(DET)的数量决定它们的复杂度级别。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第六章",
-    type: "judgment",
-    question: "功能点估算与项目所使用的语言和技术有关。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第六章",
-    type: "judgment",
-    question: "COCOMO 81 的三个等级的模型是有机型、嵌入型、半嵌入型。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第六章",
-    type: "judgment",
-    question: "经验对于估算来说不重要。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第六章",
-    type: "judgment",
-    question: "估算时既要考虑直接成本又要考虑间接成本。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第六章",
-    type: "judgment",
-    question: "在进行软件项目估算的时候,可以直接参照其他企业的模型进行项目估算。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第六章",
-    type: "judgment",
-    question: "间接成本是与一个具体项目相关的成本。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第六章",
-    type: "single",
-    question: "三点估算选择的三种估算值不包括如下哪一项?( )",
-    options: ["最可能成本", "最乐观成本", "最悲观成本", "项目经理估算值"],
-    answer: "项目经理估算值"
-  },
-  {
-    chapter: "第六章",
-    type: "single",
-    question: "下面关于估算的说法,错误的是( )。",
-    options: ["估算是有误差的", "估算时不要太迷信数学模型", "经验对于估算来说不重要", "历史数据对于估算非常重要"],
-    answer: "经验对于估算来说不重要"
-  },
-  {
-    chapter: "第六章",
-    type: "single",
-    question: "假设某项目的注册功能为3个故事点...采用 Fibonacci等级标准估算,则成绩录入功能的估算值是( )。",
-    options: ["5个故事点", "4个故事点", "6个故事点", "7个故事点"],
-    answer: "5个故事点"
-  },
-  {
-    chapter: "第六章",
-    type: "single",
-    question: "NESMA 功能点估算法提供三种估算模式,下面哪一个不是这三种模式之一?( )",
-    options: ["COSMIC 方法", "指示功能点计数", "估算功能点计数", "详细功能点计数"],
-    answer: "COSMIC 方法"
-  },
-  {
-    chapter: "第六章",
-    type: "single",
-    question: "下面哪一项不是成本估算方法?( )",
-    options: ["代码行", "功能点", "类比法", "关键路径法"],
-    answer: "关键路径法"
-  },
-  {
-    chapter: "第六章",
-    type: "single",
-    question: "下列不是UFC的功能计数项的是( )。",
-    options: ["外部输出", "外部文件", "内部输出", "内部文件"],
-    answer: "内部输出"
-  },
-  {
-    chapter: "第六章",
-    type: "single",
-    question: "成本预算的目的是( )。",
-    options: ["产生成本基线", "编写报告书", "指导设计过程", "方便进度管理"],
-    answer: "产生成本基线"
-  },
-  {
-    chapter: "第六章",
-    type: "single",
-    question: "外贸系统订单中,单价和数量是输入的,订单的金额是通过单价和数量自动计算的...哪一项描述是错误的。( )",
-    options: ["金额是没有通过系统边界输入的", "EI操作中“金额”算作一个DET", "EI操作中“单价”算作一个DET", "EI操作中“数量”算作一个DET"],
-    answer: "EI操作中“金额”算作一个DET"
-  },
-  {
-    chapter: "第六章",
-    type: "single",
-    question: "在成本管理过程中,每个时间段中的各个工作单元的成本是( )。",
-    options: ["估算", "预算", "直接成本", "间接成本"],
-    answer: "预算"
-  },
-
-  // --- 第七章 ---
-  {
-    chapter: "第七章",
-    type: "judgment",
-    question: "一个工作包可以通过多个活动完成。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第七章",
-    type: "judgment",
-    question: "在项目进行过程中,关键路径是不变的。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第七章",
-    type: "judgment",
-    question: "在PDM 网络图中,箭线表示的是任务之间的逻辑关系,节点表示的是活动。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第七章",
-    type: "judgment",
-    question: "项目各项活动之间不存在相互联系与相互依赖关系。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第七章",
-    type: "judgment",
-    question: "在资源冲突问题中,过度分配也属于资源冲突。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第七章",
-    type: "judgment",
-    question: "浮动是在不增加项目成本的条件下,一个活动可以延迟的时间量。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第七章",
-    type: "judgment",
-    question: "在使用应急法压缩时间时,不一定要在关键路径上选择活动来进行压缩。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第七章",
-    type: "judgment",
-    question: "时间是项目规划中灵活性最小的因素。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第七章",
-    type: "judgment",
-    question: "外部依赖关系又称强制性依赖关系,指的是项目活动与非项目活动之间的依赖关系。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第七章",
-    type: "judgment",
-    question: "当估算某活动时间,存在很大不确定性时应采用CPM估计。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第七章",
-    type: "single",
-    question: "下面说法中不正确的是( )。",
-    options: ["EF = ES+duration", "LS = LF-duration", "TF = LS-ES = LF-EF", "EF = ES+lag"],
-    answer: "EF = ES+lag"
-  },
-  {
-    chapter: "第七章",
-    type: "single",
-    question: "“软件编码完成之后,我才可以对它进行软件测试”,这句话说明了哪种依赖关系?( )",
-    options: ["强制性依赖关系", "软逻辑关系", "外部依赖关系", "内部依赖关系"],
-    answer: "强制性依赖关系"
-  },
-  {
-    chapter: "第七章",
-    type: "single",
-    question: "哪种图示可以显示任务的基本信息,并且能方便地查看任务的工期、开始时间、结束时间以及资源的信息?",
-    options: ["甘特图", "网络图", "里程碑图", "资源图"],
-    answer: "甘特图"
-  },
-  {
-    chapter: "第七章",
-    type: "single",
-    question: "( )是项目冲突的主要原因,尤其在项目的后期。",
-    options: ["优先级问题", "人力问题", "进度问题", "费用问题"],
-    answer: "进度问题"
-  },
-  {
-    chapter: "第七章",
-    type: "single",
-    question: "以下哪一项是项目计划中灵活性最小的因素?( )",
-    options: ["时间", "人工成本", "管理活动", "开发活动"],
-    answer: "时间"
-  },
-  {
-    chapter: "第七章",
-    type: "single",
-    question: "以下哪一项不是任务之间的关系?( )",
-    options: ["结束-开始", "开始-开始", "结束-结束", "结束-开始-结束"],
-    answer: "结束-开始-结束"
-  },
-  {
-    chapter: "第七章",
-    type: "single",
-    question: "快速跟进是指( )。",
-    options: ["采用并行执行任务,加速项目进展", "用一个任务取代另外的任务", "如有可能,减少任务数量", "减轻项目风险"],
-    answer: "采用并行执行任务,加速项目进展"
-  },
-  {
-    chapter: "第七章",
-    type: "single",
-    question: "下面哪一项将延长项目的进度?( )",
-    options: ["lag", "lead", "赶工", "快速跟进"],
-    answer: "lag"
-  },
-  {
-    chapter: "第七章",
-    type: "single",
-    question: "下面哪一项可以决定进度的灵活性?( )",
-    options: ["PERT", "总浮动", "ADM", "赶工"],
-    answer: "总浮动"
-  },
-  {
-    chapter: "第七章",
-    type: "single",
-    question: "下面哪种图示可以表示敏捷项目进度,并且可以表示出剩余的任务?( )",
-    options: ["燃起图", "燃尽图", "里程碑图", "网络图"],
-    answer: "燃尽图"
-  },
-
-  // --- 第八章 ---
-  {
-    chapter: "第八章",
-    type: "judgment",
-    question: "质量是满足要求的程度,包括符合规定的要求和客户隐含的需求。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第八章",
-    type: "judgment",
-    question: "软件质量是软件满足明确说明或者隐含的需求的程度。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第八章",
-    type: "judgment",
-    question: "软件质量可以通过后期测试得以提高。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第八章",
-    type: "judgment",
-    question: "质量计划可以确定质量保证人员的特殊汇报渠道。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第八章",
-    type: "judgment",
-    question: "软件质量是代码正确的程度。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第八章",
-    type: "judgment",
-    question: "敏捷项目要求全程的质量审查。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第八章",
-    type: "single",
-    question: "下列不属于质量管理过程的是( )。",
-    options: ["质量计划", "质量保证", "质量控制", "质量优化"],
-    answer: "质量优化"
-  },
-  {
-    chapter: "第八章",
-    type: "single",
-    question: "项目质量管理的目标是满足( )的需要。",
-    options: ["老板", "项目经理", "项目", "组织"],
-    answer: "项目"
-  },
-  {
-    chapter: "第八章",
-    type: "single",
-    question: "下列属于质量成本的是( )。",
-    options: ["预防成本", "缺陷数量", "预测成本", "缺失成本"],
-    answer: "预防成本"
-  },
-  {
-    chapter: "第八章",
-    type: "single",
-    question: "下列不是质量计划方法的是( )。",
-    options: ["质量成本分析", "因果分析图", "抽样分析", "基准对照"],
-    answer: "抽样分析"
-  },
-  {
-    chapter: "第八章",
-    type: "single",
-    question: "下列不是软件质量模型的是( )。",
-    options: ["Boehm 质量模型", "McCall 质量模型", "ISO/IEC 9216质量模型", "关键路径模型"],
-    answer: "关键路径模型"
-  },
-  {
-    chapter: "第八章",
-    type: "single",
-    question: "质量控制非常重要... ( )可以降低质量控制的成本。",
-    options: ["进行过程分析", "使用抽样统计", "对全程进行监督", "进行质量审计"],
-    answer: "使用抽样统计"
-  },
-  {
-    chapter: "第八章",
-    type: "single",
-    question: "McCall 质量模型不包含( )。",
-    options: ["产品修改", "产品转移", "产品特点", "产品运行"],
-    answer: "产品特点"
-  },
-  {
-    chapter: "第八章",
-    type: "single",
-    question: "下面哪项不是敏捷项目的质量实践?( )",
-    options: ["结对编程", "TDD", "迭代评审", "需求规约编写过程审计"],
-    answer: "需求规约编写过程审计"
-  },
-
-  // --- 第九章 ---
-  {
-    chapter: "第九章",
-    type: "judgment",
-    question: "一个软件配置项可能有多个标识。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第九章",
-    type: "judgment",
-    question: "基线提供了软件开发阶段的一个特定点。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第九章",
-    type: "judgment",
-    question: "有效的项目管理能够控制变化,以最有效的手段应对变化,不断命中移动的目标。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第九章",
-    type: "judgment",
-    question: "一个(些)配置项形成并通过审核,即形成基线。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第九章",
-    type: "judgment",
-    question: "软件配置项是项目需定义其受控于软件配置管理的款项。每个项目的配置项是相同的。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第九章",
-    type: "judgment",
-    question: "基线的修改不需要每次都按照正式的程序执行。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第九章",
-    type: "judgment",
-    question: "基线产品是不能修改的。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第九章",
-    type: "judgment",
-    question: "基线修改应受到控制,但不一定要经SCCB授权。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第九章",
-    type: "judgment",
-    question: "变更控制系统包括从项目变更申请、变更评估、变更审批到变更实施的文档化流程。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第九章",
-    type: "judgment",
-    question: "在持续交付领域,强调对项目所有的相关产物及其之间的关系都要进行有效配置管理。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第九章",
-    type: "judgment",
-    question: "持续交付更倾向使用基于分支的开发模式。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第九章",
-    type: "single",
-    question: "下列不属于SCCB的职责的是( )。",
-    options: ["评估变更", "与项目管理层沟通", "对变更进行反馈", "提出变更申请"],
-    answer: "提出变更申请"
-  },
-  {
-    chapter: "第九章",
-    type: "single",
-    question: "关于基线的描述,下列描述正确的是( )。",
-    options: ["不可以变化", "可以变化,但是必须通过基线变更控制流程处理", "所有的项目必须定义基线", "基线发生变更时,必须修改需求"],
-    answer: "可以变化,但是必须通过基线变更控制流程处理"
-  },
-  {
-    chapter: "第九章",
-    type: "single",
-    question: "软件配置管理无法确保以下哪种软件产品属性?( )",
-    options: ["正确性", "完整性", "一致性", "可控性"],
-    answer: "正确性"
-  },
-  {
-    chapter: "第九章",
-    type: "single",
-    question: "变更控制主要关注的是( )。",
-    options: ["阻止变更", "标识变更,提出变更,管理变更", "管理 SCCB", "客户的想法"],
-    answer: "标识变更,提出变更,管理变更"
-  },
-  {
-    chapter: "第九章",
-    type: "single",
-    question: "以下哪一项不属于软件项目配置管理的问题?( )",
-    options: ["找不到某个文件的历史版本", "甲方与乙方在资金调配上存在意见差异", "开发人员未经授权修改代码或文档", "因协同开发或者异地开发,版本变更混乱导致整个项目失败"],
-    answer: "甲方与乙方在资金调配上存在意见差异"
-  },
-
-  // --- 第十章 ---
-  {
-    chapter: "第十章",
-    type: "judgment",
-    question: "项目干系人计划是项目计划的一部分。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十章",
-    type: "judgment",
-    question: "项目型组织结构的优点是可以资源共享。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第十章",
-    type: "judgment",
-    question: "应尽量多建立一些项目沟通渠道。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第十章",
-    type: "judgment",
-    question: "项目沟通的基本原则是及时性、准确性、完整性和可理解性。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十章",
-    type: "judgment",
-    question: "在IT项目中,成功最大的威胁是沟通的失败。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十章",
-    type: "judgment",
-    question: "责任分配矩阵是明确项目团队成员的角色与职责的有效工具。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十章",
-    type: "judgment",
-    question: "口头沟通不是项目沟通的方式。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第十章",
-    type: "judgment",
-    question: "对于紧急的信息,应该通过口头的方式沟通;对于重要的信息,应采用书面的方式沟通。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十章",
-    type: "judgment",
-    question: "沟通计划包括确定谁需要信息、需要什么信息、何时需要信息,以及如何接收信息等。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十章",
-    type: "judgment",
-    question: "“小前台+大中台”的组织模式...即多个前台业务复用后台技术。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十章",
-    type: "single",
-    question: "( )以图形方式展示项目团队成员及其报告关系。这样可以减少沟通渠道,减少沟通成本。",
-    options: ["项目组织图", "甘特图", "网络图", "RAM 图"],
-    answer: "项目组织图"
-  },
-  {
-    chapter: "第十章",
-    type: "single",
-    question: "下面哪项不是敏捷角色?( )",
-    options: ["产品负责人", "团队促进者", "跨职能团队成员", "合同管理者"],
-    answer: "合同管理者"
-  },
-  {
-    chapter: "第十章",
-    type: "single",
-    question: "在项目管理的组织结构中,适用于主要由一个部门完成的项目或技术比较成熟的项目的组织结构是( )。",
-    options: ["矩阵型组织结构", "项目型组织结构", "职能型组织结构", "都一样"],
-    answer: "职能型组织结构"
-  },
-  {
-    chapter: "第十章",
-    type: "single",
-    question: "在实践中,最有效的敏捷团队往往由三到九个成员组成,而且黄金人数是( )。",
-    options: ["3~5人", "4~7人", "5~9人", "4~9人"],
-    answer: "5~9人"
-  },
-  {
-    chapter: "第十章",
-    type: "single",
-    question: "在( )组织结构中,项目成员没有安全感。",
-    options: ["职能型", "矩阵型", "项目型", "弱矩阵型"],
-    answer: "项目型"
-  },
-  {
-    chapter: "第十章",
-    type: "single",
-    question: "下列关于干系人的描述中,不正确的是( )。",
-    options: ["影响项目决策的个人、群体或者组织", "影响项目活动的个人,群体或者组织", "影响项目结果的个人、群体或者组织", "所有项目人员"],
-    answer: "所有项目人员"
-  },
-  {
-    chapter: "第十章",
-    type: "single",
-    question: "编制沟通计划的基础是( )。",
-    options: ["沟通需求分析", "项目范围说明书", "项目管理计划", "历史资料"],
-    answer: "沟通需求分析"
-  },
-  {
-    chapter: "第十章",
-    type: "single",
-    question: "项目团队原来有5个成员,现在人员扩充,又增加了3个成员,那么沟通渠道是原来的( )倍。",
-    options: ["2.8", "2", "4", "1.6"],
-    answer: "2.8"
-  },
-  {
-    chapter: "第十章",
-    type: "single",
-    question: "对于项目中比较重要的通知,最好采用( )沟通方式。",
-    options: ["口头", "书面", "网络方式", "电话"],
-    answer: "书面"
-  },
-  {
-    chapter: "第十章",
-    type: "single",
-    question: "在一个高科技公司...涉及很多的领域和特性,他应该选择( )组织结构。",
-    options: ["矩阵型", "项目型", "职能型", "组织型"],
-    answer: "矩阵型"
-  },
-
-  // --- 第十一章 ---
-  {
-    chapter: "第十一章",
-    type: "judgment",
-    question: "任何项目都是有风险的。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十一章",
-    type: "judgment",
-    question: "风险是损失发生的不确定性,是对潜在的、未来可能发生损害的一种度量。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十一章",
-    type: "judgment",
-    question: "风险识别、风险评估、风险规划、风险控制是风险管理的4个过程。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十一章",
-    type: "judgment",
-    question: "应对风险的常见策略是回避风险、转移风险、损失控制和自留风险。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十一章",
-    type: "judgment",
-    question: "项目的风险几乎一样。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第十一章",
-    type: "judgment",
-    question: "购买保险是一种回避风险的应对策略。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第十一章",
-    type: "judgment",
-    question: "MVP 版本也是敏捷项目应对风险的一个处理方式。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十一章",
-    type: "single",
-    question: "下列不属于项目风险的三要素的是( )。",
-    options: ["一个事件", "事件的产生原因", "事件发生的概率", "事件的影响"],
-    answer: "事件的产生原因"
-  },
-  {
-    chapter: "第十一章",
-    type: "single",
-    question: "下列属于可预测风险的是( )。",
-    options: ["不现实的交付时间", "没有需求或软件范围的文档", "人员调整", "恶劣的开发环境"],
-    answer: "人员调整"
-  },
-  {
-    chapter: "第十一章",
-    type: "single",
-    question: "下列不是风险管理过程的是( )。",
-    options: ["风险评估", "风险识别", "风险规划", "风险收集"],
-    answer: "风险收集"
-  },
-  {
-    chapter: "第十一章",
-    type: "single",
-    question: "下列说法错误的是( )。",
-    options: ["项目风险的3个要素是一个事件、事件发生的概率、事件的影响", "风险管理的4个过程是风险识别、风险评估、风险规划、风险控制", "风险规划的主要策略是回避风险、转移风险、损失控制、自留风险", "项目风险是由风险发生的可能性决定的"],
-    answer: "项目风险是由风险发生的可能性决定的"
-  },
-  {
-    chapter: "第十一章",
-    type: "single",
-    question: "在一个项目的开发过程中采用了新的技术...找来专家对项目组人员进行技术培训,这是什么风险应对策略?( )",
-    options: ["回避风险", "损失控制", "转移风险", "自留风险"],
-    answer: "损失控制"
-  },
-  {
-    chapter: "第十一章",
-    type: "single",
-    question: "下列不属于风险评估方法的是( )。",
-    options: ["盈亏平衡分析", "模拟法", "决策树分析", "二叉树分析"],
-    answer: "二叉树分析"
-  },
-
-  // --- 第十二章 ---
-  {
-    chapter: "第十二章",
-    type: "judgment",
-    question: "软件项目外包的实质是软件开发过程从公司内部部分或全部延伸到公司外部的过程。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十二章",
-    type: "judgment",
-    question: "对于甲方来说,成本补偿合同的风险大于总价合同的风险,对乙方来说则相反。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十二章",
-    type: "judgment",
-    question: "如果一个项目的合同类型是固定价格(FFP),合同价格是100万元,实际花费160万元,则项目结算金额为160万元。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第十二章",
-    type: "judgment",
-    question: "成本加激励费用(CPIF)合同具有激励机制。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十二章",
-    type: "judgment",
-    question: "“敏捷宣言”认为“客户协作高于合同协商”。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十二章",
-    type: "single",
-    question: "下列合同类型中,卖方承担的风险最大的是( )。",
-    options: ["成本加固定费用", "成本加激励费用", "成本加奖金", "固定总价"],
-    answer: "固定总价"
-  },
-  {
-    chapter: "第十二章",
-    type: "single",
-    question: "某项目采用成本加激励费用的成本补偿类合同...如果实际成本降至16万,则项目总价为( )。",
-    options: ["24万元", "23.2万元", "20.8万元", "20万元"],
-    answer: "20.8万元"
-  },
-  {
-    chapter: "第十二章",
-    type: "single",
-    question: "合同是需要靠( )约束的。",
-    options: ["双方达成的共识", "道德", "责任", "相关法律法规"],
-    answer: "相关法律法规"
-  },
-  {
-    chapter: "第十二章",
-    type: "single",
-    question: "下面哪一项不是敏捷项目涉及的动态特性的合同签署技术?( )",
-    options: ["多层结构", "总价增量", "动态范围方案", "固定价格"],
-    answer: "固定价格"
-  },
-
-  // --- 第十三章 ---
-  {
-    chapter: "第十三章",
-    type: "judgment",
-    question: "范围与成本呈一定的正比关系。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十三章",
-    type: "judgment",
-    question: "进度和成本是关系最为密切的两个要素...进度的缩短一定依靠增加成本实现...",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第十三章",
-    type: "judgment",
-    question: "项目管理过程是一个集成的过程,范围计划、进度计划、成本计划...是相互联系的。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十三章",
-    type: "judgment",
-    question: "软件项目管理最重要的4个要素是范围、质量、进度、风险。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第十三章",
-    type: "judgment",
-    question: "GQM 度量技术的核心内容是根据目标设计问题,通过问题设计度量指标。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十三章",
-    type: "single",
-    question: "项目集成管理包括以下内容,除了( )。",
-    options: ["对计划的集成管理和项目跟踪控制的集成管理", "保证项目各要素协调", "软件设计文档", "在相互影响的项目目标和方案中做出权衡"],
-    answer: "软件设计文档"
-  },
-  {
-    chapter: "第十三章",
-    type: "single",
-    question: "设成本是范围S、质量Q、进度T的一个函数...在成本或时间不充足的情况下,可以通过减小范围或者( )来解决。",
-    options: ["提高质量", "增加项目成员", "降低质量", "以上均不行"],
-    answer: "降低质量"
-  },
-  {
-    chapter: "第十三章",
-    type: "single",
-    question: "项目管理过程中的进度目标、成本目标、质量目标、范围目标等各个目标之间( )。",
-    options: ["相互独立", "相互关联和制约", "进度目标最重要", "以上都不是"],
-    answer: "相互关联和制约"
-  },
-
-  // --- 第十四章 ---
-  {
-    chapter: "第十四章",
-    type: "judgment",
-    question: "范围控制的一个重要注意点是防治不合理的范围扩张,范围蔓延和范围镀金都是不合理的范围扩张。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十四章",
-    type: "judgment",
-    question: "项目进度成本控制的基本目标是在给定的限制条件下,用最短时间、最小成本,以最小风险完成项目工作。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十四章",
-    type: "judgment",
-    question: "代码走查是在代码编写阶段,开发人员自己检查自己的代码。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十四章",
-    type: "judgment",
-    question: "在使用应急法压缩进度时,不一定要在关键路径上选择活动来进行压缩。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第十四章",
-    type: "judgment",
-    question: "累计费用曲线中某时间点ACWP比BCWS高,意味着在这个时间点为止,实际的成本要比计划的高。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十四章",
-    type: "judgment",
-    question: "CPI=0.90说明目前的预期成本超出计划的90%。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第十四章",
-    type: "judgment",
-    question: "技术评审的目的是尽早发现工作成果中的缺陷...从而有效地提高产品的质量。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十四章",
-    type: "judgment",
-    question: "基于流程的敏捷项目执行控制方法中,交付周期是指处理一个工作项目所需的时间。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第十四章",
-    type: "single",
-    question: "在一个项目会议上,一个成员提出增加任务的要求...项目经理提出项目团队应该集中精力完成而且仅需完成原来定义的范围基线,这是一个( )的例子。",
-    options: ["范围定义", "范围管理", "范围蔓延", "范围变更请求"],
-    answer: "范围管理"
-  },
-  {
-    chapter: "第十四章",
-    type: "single",
-    question: "项目原来预计于2023年5月23日完成1000元的工作,但是到2023年5月23日只完成了850元的工作,而为了这些工作花费了900元,则成本偏差和进度偏差分别为( )。",
-    options: ["CV=50元,SV=-150元", "CV=-150元,SV=-150元", "CV=-50元,SV=-50元", "CV=-50元,SV=-150元"],
-    answer: "CV=-50元,SV=-150元"
-  },
-  {
-    chapter: "第十四章",
-    type: "single",
-    question: "如果成本效能指标CPI=90%,则说明( )。",
-    options: ["目前的预期成本超出计划的90%", "投入1元产生0.90元的效果", "项目完成的时候,将超支90%", "项目已经完成计划的90%"],
-    answer: "投入1元产生0.90元的效果"
-  },
-  {
-    chapter: "第十四章",
-    type: "single",
-    question: "进度控制重要的一个组成部分是( )。",
-    options: ["确定进度偏差是否需要采取纠正措施", "定义为项目的可交付成果所需要的活动", "评估 WBS 定义是否足以支持进度计划", "确保项目队伍的士气高昂,发挥团队成员的潜力"],
-    answer: "确定进度偏差是否需要采取纠正措施"
-  },
-  {
-    chapter: "第十四章",
-    type: "single",
-    question: "当项目进展到( )左右时,CPI处于稳定。",
-    options: ["10%", "20%", "30%", "40%"],
-    answer: "20%"
-  },
-  {
-    chapter: "第十四章",
-    type: "single",
-    question: "抽样统计的方法中,( )。",
-    options: ["应该选择更多的样品", "以小批量的抽样为基准进行检验", "确定大量或批量产品质量的唯一方法", "导致更高的成本"],
-    answer: "以小批量的抽样为基准进行检验"
-  },
-
-  // --- 第十五章 ---
-  {
-    chapter: "第十五章",
-    type: "judgment",
-    question: "麦格雷戈的X理论是参与理论。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第十五章",
-    type: "judgment",
-    question: "产品提交之后,如果甲方提出修改一些功能,对于这个维护需求,我们应该及时给予维护。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第十五章",
-    type: "judgment",
-    question: "风险管理是连续的过程。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十五章",
-    type: "judgment",
-    question: "管理干系人参与和控制干系人参与都是干系人管理的任务。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十五章",
-    type: "judgment",
-    question: "敏捷生存期模型中的每天站立会议是一种很有效的沟通方式。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十五章",
-    type: "single",
-    question: "移情聆听需要理解他人的观点,为了展示移情聆听的技巧,项目经理应该( )。",
-    options: ["检查阐述的内容是否正确", "重复他人的内容,并且有感情色彩", "评估内容并提出建议", "重复"],
-    answer: "重复他人的内容,并且有感情色彩"
-  },
-  {
-    chapter: "第十五章",
-    type: "single",
-    question: "对于冲突而言,下面哪个说法是正确的?( )",
-    options: ["冲突是坏事情", "冲突常常是有利的事情", "冲突是由捣乱分子制造的", "应该避免冲突"],
-    answer: "冲突常常是有利的事情"
-  },
-  {
-    chapter: "第十五章",
-    type: "single",
-    question: "项目培训特点不包括( )。",
-    options: ["时间短", "连续性", "针对性强", "见效快"],
-    answer: "连续性"
-  },
-  {
-    chapter: "第十五章",
-    type: "single",
-    question: "“为什么大家不能都让一步解决这个问题呢?”,这是哪类冲突解决方法的体现?( )",
-    options: ["解决问题", "妥协", "强迫方式", "撤退"],
-    answer: "妥协"
-  },
-  {
-    chapter: "第十五章",
-    type: "single",
-    question: "项目中的小组成员要同时离开公司,项目经理首先应该( )。",
-    options: ["实施风险计划", "招募新员工", "与人力资源经理谈判", "修订计划"],
-    answer: "实施风险计划"
-  },
-
-  // --- 第十六章 ---
-  {
-    chapter: "第十六章",
-    type: "judgment",
-    question: "有大量文件说明就能保证项目成功。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第十六章",
-    type: "judgment",
-    question: "项目计划中确定的可交付成果已经出现,项目的目标已经成功实现时,可终止项目。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十六章",
-    type: "judgment",
-    question: "项目成果没有完成前,不能终止项目。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第十六章",
-    type: "judgment",
-    question: "只有项目成功完成了,才说明项目结束了。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第十六章",
-    type: "judgment",
-    question: "项目经验教训总结是项目结束的一个重要输出。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十六章",
-    type: "judgment",
-    question: "当一个项目的目标已经实现或者明确看到目标已经不可能实现时,项目就应该终止。",
-    options: ["正确", "错误"],
-    answer: "正确"
-  },
-  {
-    chapter: "第十六章",
-    type: "judgment",
-    question: "项目的最后评审是不必要的。",
-    options: ["正确", "错误"],
-    answer: "错误"
-  },
-  {
-    chapter: "第十六章",
-    type: "single",
-    question: "软件项目收尾工作应该做的事情不包括( )。",
-    options: ["人员角色选择", "范围确认", "质量验收和产品交付", "费用决算和项目文档验收"],
-    answer: "人员角色选择"
-  },
-  {
-    chapter: "第十六章",
-    type: "single",
-    question: "下列除了哪—项,其他都可以是项目终止的条件。( )",
-    options: ["项目计划中确定的可交付成果已经出现,项目的目标已经成功实现", "项目已经不具备实用价值", "项目由于各种原因而导致无限期拖长", "项目需求发生了变化"],
-    answer: "项目需求发生了变化"
-  },
-  {
-    chapter: "第十六章",
-    type: "single",
-    question: "下列不是项目成功与失败的标准的是( )。",
-    options: ["是否实现目标", "可交付成果如何", "是否达到项目客户的期望", "项目人数庞大"],
-    answer: "项目人数庞大"
-  },
-  {
-    chapter: "第十六章",
-    type: "single",
-    question: "在项目的末期,与卖方的合同还有尚未解决的索赔,项目经理( )。",
-    options: ["可能将合同收尾工作转交给其他人员", "通过审计来澄清索赔原因", "不能进行收尾工作", "进行合同收尾,合同收尾之后,可能采取法律行动"],
-    answer: "进行合同收尾,合同收尾之后,可能采取法律行动"
-  },
-  {
-    chapter: "第十六章",
-    type: "single",
-    question: "项目接近结束的时候,如果客户希望对项目范围进行大的变更,项目经理应该如何做?( )",
-    options: ["进行变更", "告诉客户变更带来的影响", "拒绝变更", "不理会"],
-    answer: "告诉客户变更带来的影响"
-  },
-  {
-    chapter: "第十六章",
-    type: "single",
-    question: "关于传统与敏捷项目管理的不同点,下面哪项论述是不对的?( )",
-    options: ["敏捷是适应变化的价值驱动方法", "传统项目管理采取自组织团队管理模式", "敏捷是快速交付价值和响应变化", "传统项目管理是遵守计划的架构驱动方法"],
-    answer: "传统项目管理采取自组织团队管理模式"
-  }
-];
-
-// Add unique ID to each question for reliable tracking
-const QUESTIONS_WITH_ID = RAW_QUESTIONS_SOURCE.map((q, index) => ({
-  ...q,
-  id: index
-}));
-
-// --- APP COMPONENT ---
-
-function App() {
-  const [currentView, setCurrentView] = useState('menu'); // 'menu', 'quiz', 'result'
-  const [questions, setQuestions] = useState([]);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedOption, setSelectedOption] = useState(null);
-  const [score, setScore] = useState(0);
-  const [history, setHistory] = useState([]); // Array of { question, selected, correct }
-  const [quizTitle, setQuizTitle] = useState('');
-  
-  // New state for handling exit confirmation inline without window.confirm
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
-  
-  // Favorites State
-  const [favorites, setFavorites] = useState(() => {
-    try {
-      const saved = localStorage.getItem('spm_quiz_favorites');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem('spm_quiz_favorites', JSON.stringify(favorites));
-  }, [favorites]);
-
-  const toggleFavorite = (questionId) => {
-    setFavorites(prev => {
-      if (prev.includes(questionId)) {
-        return prev.filter(id => id !== questionId);
-      } else {
-        return [...prev, questionId];
-      }
-    });
-  };
-
-  // Shuffle function
-  const shuffleArray = (array) => {
-    const newArray = [...array];
-    for (let i = newArray.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-    }
-    return newArray;
-  };
-
-  const startQuiz = (mode, param) => {
-    let sourceQuestions = [];
-    let title = '';
-
-    if (mode === 'all') {
-      sourceQuestions = [...QUESTIONS_WITH_ID];
-      title = '全书综合测试';
-    } else if (mode === 'chapter') {
-      const chapterName = param;
-      sourceQuestions = QUESTIONS_WITH_ID.filter(q => q.chapter === chapterName);
-      title = `${chapterName}专项练习`;
-    } else if (mode === 'favorites') {
-      sourceQuestions = QUESTIONS_WITH_ID.filter(q => favorites.includes(q.id));
-      title = '我的收藏本测试';
-    }
-
-    if (sourceQuestions.length === 0) {
-      alert("没有找到相关题目（如果是收藏本，请先收藏题目）");
-      return;
-    }
-
-    // 1. Shuffle Questions
-    const shuffledQuestions = shuffleArray(sourceQuestions).map(q => {
-      // 2. Shuffle Options for Single Choice
-      if (q.type === 'single') {
-        return {
-          ...q,
-          options: shuffleArray(q.options)
-        };
-      }
-      return q;
-    });
-
-    setQuestions(shuffledQuestions);
-    setQuizTitle(title);
-    setCurrentView('quiz');
-    setCurrentQuestionIndex(0);
-    setScore(0);
-    setHistory([]);
-    setSelectedOption(null);
-    setShowExitConfirm(false); // Reset exit confirm state
-  };
-
-  const handleOptionSelect = (option) => {
-    if (selectedOption !== null) return; // Prevent changing answer
-    setSelectedOption(option);
-  };
-
-  const handleNext = () => {
-    const currentQ = questions[currentQuestionIndex];
-    const isCorrect = selectedOption === currentQ.answer;
-
-    // Update Score
-    if (isCorrect) {
-      setScore(s => s + 1);
-    }
-
-    // Record History
-    setHistory([...history, {
-      question: currentQ,
-      selected: selectedOption,
-      isCorrect: isCorrect
-    }]);
-
-    // Move to next or finish
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
-      setSelectedOption(null);
-      setShowExitConfirm(false); // Ensure confirm is hidden on next question
-    } else {
-      setCurrentView('result');
-    }
-  };
-
-  const chapters = ["第一章", "第二章", "第三章", "第四章", "第五章", "第六章", "第七章", "第八章", "第九章", "第十章", "第十一章", "第十二章", "第十三章", "第十四章", "第十五章", "第十六章"];
-
-  // -- RENDER MENU SCREEN --
-  if (currentView === 'menu') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <Card className="w-full max-w-4xl bg-white shadow-xl rounded-2xl overflow-hidden flex flex-col md:flex-row">
-          {/* Left Panel: Hero */}
-          <div className="bg-indigo-600 p-8 text-white md:w-1/3 flex flex-col justify-center items-center text-center">
-            <BookOpen className="w-20 h-20 mb-6 opacity-90" />
-            <h1 className="text-3xl font-bold mb-2">软件项目管理</h1>
-            <p className="text-indigo-200 mb-8">课后练习全真模拟</p>
-            <div className="space-y-4 w-full text-left">
-              <div className="flex items-center bg-indigo-700 bg-opacity-50 p-3 rounded-lg">
-                <CheckCircle className="w-5 h-5 mr-3 flex-shrink-0" />
-                <span className="text-sm">包含1-16章全题库</span>
-              </div>
-               <div className="flex items-center bg-indigo-700 bg-opacity-50 p-3 rounded-lg">
-                <Star className="w-5 h-5 mr-3 flex-shrink-0 text-yellow-300" />
-                <span className="text-sm">支持收藏与错题复习</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Panel: Options */}
-          <div className="p-8 md:w-2/3 bg-gray-50 overflow-y-auto max-h-[90vh]">
-            <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
-              <List className="w-6 h-6 mr-2 text-indigo-600" />
-              请选择测试模式
-            </h2>
-
-            {/* Main Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-              <button
-                onClick={() => startQuiz('all')}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white p-6 rounded-xl shadow-lg transition-transform hover:scale-105 flex flex-col items-center justify-center"
-              >
-                <Play className="w-8 h-8 mb-2" />
-                <span className="font-bold text-lg">综合测试</span>
-                <span className="text-indigo-200 text-sm mt-1">全书题目随机打乱</span>
-              </button>
-
-              <button
-                onClick={() => startQuiz('favorites')}
-                className="bg-white border-2 border-indigo-100 hover:border-indigo-500 hover:bg-indigo-50 text-gray-800 p-6 rounded-xl shadow-sm transition-all flex flex-col items-center justify-center relative group"
-              >
-                <div className="absolute top-3 right-3 bg-yellow-100 text-yellow-800 text-xs font-bold px-2 py-1 rounded-full">
-                  {favorites.length} 题
-                </div>
-                <Bookmark className="w-8 h-8 mb-2 text-yellow-500" />
-                <span className="font-bold text-lg">我的收藏本</span>
-                <span className="text-gray-400 text-sm mt-1">复习已收藏的重点题目</span>
-              </button>
-            </div>
-
-            {/* Chapter Grid */}
-            <div>
-              <h3 className="text-md font-bold text-gray-700 mb-4 flex items-center">
-                <Grid className="w-5 h-5 mr-2" />
-                分章节练习
-              </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                {chapters.map((chapter) => (
-                  <button
-                    key={chapter}
-                    onClick={() => startQuiz('chapter', chapter)}
-                    className="bg-white hover:bg-indigo-50 border border-gray-200 hover:border-indigo-300 text-gray-600 hover:text-indigo-700 py-3 rounded-lg text-sm font-medium transition-colors"
-                  >
-                    {chapter}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
-  // -- RENDER RESULT SCREEN --
-  if (currentView === 'result') {
-    const percentage = Math.round((score / questions.length) * 100);
-    const wrongAnswers = history.filter(h => !h.isCorrect);
-
-    return (
-      <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-        <div className="max-w-4xl mx-auto space-y-6">
-          <Card className="bg-white p-8 rounded-2xl shadow-lg text-center relative">
-             <button 
-                onClick={() => setCurrentView('menu')}
-                className="absolute top-4 left-4 text-gray-400 hover:text-gray-600 flex items-center transition-colors"
-             >
-                <Home className="w-5 h-5 mr-1" />
-                返回主页
-             </button>
-            <Award className="w-20 h-20 mx-auto text-yellow-500 mb-4" />
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">{quizTitle} 结束</h2>
-            <div className="text-6xl font-black text-indigo-600 mb-4">{score} <span className="text-2xl text-gray-400">/ {questions.length}</span></div>
-            <p className="text-xl text-gray-600 mb-8">正确率: {percentage}%</p>
-            <div className="flex justify-center space-x-4">
-              <button
-                onClick={() => setCurrentView('menu')}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-bold flex items-center transition-colors"
-              >
-                <Home className="w-5 h-5 mr-2" />
-                返回主页
-              </button>
-              <button
-                onClick={() => startQuiz('all')} // This logic might need to be smarter to restart SAME quiz
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg font-bold flex items-center transition-colors"
-              >
-                <RotateCcw className="w-5 h-5 mr-2" />
-                再测一次综合
-              </button>
-            </div>
-          </Card>
-
-          {wrongAnswers.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-              <div className="bg-red-50 p-4 border-b border-red-100">
-                <h3 className="text-lg font-bold text-red-800 flex items-center">
-                  <XCircle className="w-5 h-5 mr-2" />
-                  错题回顾 ({wrongAnswers.length})
-                </h3>
-              </div>
-              <div className="divide-y divide-gray-100">
-                {wrongAnswers.map((item, idx) => (
-                  <div key={idx} className="p-6 relative group">
-                    <button 
-                      onClick={() => toggleFavorite(item.question.id)}
-                      className="absolute top-6 right-6 p-2 rounded-full hover:bg-gray-100 transition-colors"
-                    >
-                      <Star 
-                        className={`w-6 h-6 ${favorites.includes(item.question.id) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} 
-                      />
-                    </button>
-                    <div className="flex justify-between items-start mb-2 pr-10">
-                      <span className="inline-block bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded mb-2">
-                        {item.question.chapter} • {item.question.type === 'single' ? '单选题' : '判断题'}
-                      </span>
-                    </div>
-                    <h4 className="text-lg font-medium text-gray-900 mb-4">{item.question.question}</h4>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                        <span className="block text-xs text-red-600 font-bold uppercase mb-1">你的选择</span>
-                        <span className="text-red-900">{item.selected}</span>
-                      </div>
-                      <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                        <span className="block text-xs text-green-600 font-bold uppercase mb-1">正确答案</span>
-                        <span className="text-green-900 font-medium">{item.question.answer}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // -- RENDER QUIZ SCREEN --
-  const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
-  const isSelected = selectedOption !== null;
-  const currentQ = questions[currentQuestionIndex];
-  const isFav = favorites.includes(currentQ.id);
-
-  return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center p-4">
-      {/* Header / Progress */}
-      <div className="w-full max-w-3xl mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <div className="relative">
-            {!showExitConfirm ? (
-              <button 
-                onClick={() => setShowExitConfirm(true)}
-                className="text-gray-500 hover:text-indigo-600 flex items-center text-sm font-medium transition-colors"
-              >
-                <Home className="w-4 h-4 mr-1" />
-                退出
-              </button>
-            ) : (
-              <div className="flex items-center space-x-2 animate-in fade-in slide-in-from-left-2 duration-200 bg-white px-2 py-1 rounded shadow-sm">
-                <span className="text-xs text-gray-500">确定退出?</span>
-                <button 
-                  onClick={() => {
-                    setCurrentView('menu');
-                    setShowExitConfirm(false);
-                  }}
-                  className="text-red-600 hover:text-red-700 font-bold text-xs px-2 py-1 bg-red-50 rounded transition-colors"
-                >
-                  确定
-                </button>
-                <button 
-                  onClick={() => setShowExitConfirm(false)}
-                  className="text-gray-400 hover:text-gray-600 text-xs px-2 py-1 transition-colors"
-                >
-                  取消
-                </button>
-              </div>
-            )}
-          </div>
-          
-          <div className="text-indigo-900 font-bold text-sm md:text-base truncate max-w-[150px] md:max-w-none">{quizTitle}</div>
-          
-          <button 
-             onClick={() => toggleFavorite(currentQ.id)}
-             className={`flex items-center text-sm font-medium px-3 py-1 rounded-full border transition-all ${isFav ? 'bg-yellow-50 border-yellow-200 text-yellow-600' : 'bg-white border-gray-200 text-gray-400 hover:text-gray-600'}`}
-          >
-             <Star className={`w-4 h-4 mr-1 ${isFav ? 'fill-current' : ''}`} />
-             {isFav ? '已收藏' : '收藏'}
-          </button>
-        </div>
-        <div className="flex justify-between items-end mb-2">
-          <span className="text-gray-500 font-medium">第 {currentQuestionIndex + 1} 题</span>
-          <span className="text-gray-400 text-sm">共 {questions.length} 题</span>
-        </div>
-        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-indigo-600 transition-all duration-300 ease-out"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      </div>
-
-      {/* Question Card */}
-      <Card className="w-full max-w-3xl bg-white shadow-md rounded-xl overflow-hidden flex-grow flex flex-col relative">
-        {/* Question Area */}
-        <div className="p-6 md:p-10 border-b border-gray-100">
-           <span className="inline-block bg-indigo-50 text-indigo-700 text-xs font-bold px-2 py-1 rounded mb-4">
-              {currentQ.chapter}
-           </span>
-           <h2 className="text-xl md:text-2xl font-bold text-gray-800 leading-relaxed">
-             {currentQ.question}
-           </h2>
-        </div>
-
-        {/* Options Area */}
-        <div className="p-6 md:p-10 bg-gray-50 flex-grow space-y-3">
-          {currentQ.options.map((option, idx) => {
-            let optionClass = "w-full p-4 text-left rounded-xl border-2 transition-all duration-200 flex items-center justify-between group ";
+        // --- 完整题目库 (1-16章) ---
+        const RAW_DATA = [
+            // 第一章
+            { ch: "第一章", t: "judgment", q: "搬家属于项目。", o: ["正确", "错误"], a: "正确" },
+            { ch: "第一章", t: "judgment", q: "项目是为了创造唯一的产品或提供唯一的服务而进行的永久性的努力。", o: ["正确", "错误"], a: "错误" },
+            { ch: "第一章", t: "judgment", q: "过程管理的目的是要让过程能够被共享、复用,并得到持续的改进。", o: ["正确", "错误"], a: "正确" },
+            { ch: "第一章", t: "judgment", q: "项目具有临时性的特征。", o: ["正确", "错误"], a: "正确" },
+            { ch: "第一章", t: "judgment", q: "日常运作存在大量的变更管理,而项目基本保持连贯性。", o: ["正确", "错误"], a: "错误" },
+            { ch: "第一章", t: "judgment", q: "相比于传统开发的预测性过程,敏捷开发属于自适应过程。", o: ["正确", "错误"], a: "正确" },
+            { ch: "第一章", t: "single", q: "下列选项中不是项目与日常运作的区别的是( )。", o: ["项目是以目标为导向的", "项目是通过项目经理及其团队的工作完成的", "项目需要有专业知识的人完成,而日常运作不需要", "项目是一次性的,日常运作是重复进行的"], a: "项目需要有专业知识的人完成,而日常运作不需要" },
+            { ch: "第一章", t: "single", q: "下面哪一项不是《PMBOK指南》(第6版)中的知识领域?( )", o: ["招聘管理", "质量管理", "范围管理", "风险管理"], a: "招聘管理" },
             
-            if (isSelected) {
-              if (option === currentQ.answer) {
-                optionClass += "bg-green-100 border-green-500 text-green-800";
-              } else if (option === selectedOption) {
-                optionClass += "bg-red-100 border-red-500 text-red-800";
-              } else {
-                optionClass += "bg-white border-gray-200 text-gray-400 opacity-50";
-              }
-            } else {
-              optionClass += "bg-white border-gray-200 hover:border-indigo-400 hover:shadow-md text-gray-700";
+            // 第二章
+            { ch: "第二章", t: "judgment", q: "项目立项可以确立项目目标、时间和资源成本,同时得到项目发起人的认可。", o: ["正确", "错误"], a: "正确" },
+            { ch: "第二章", t: "judgment", q: "项目招标对于一个项目的开发是必需的,即便项目是内部项目。", o: ["正确", "错误"], a: "错误" },
+            { ch: "第二章", t: "judgment", q: "自主开发相当于自制-购买决策中的自制。", o: ["正确", "错误"], a: "正确" },
+            { ch: "第二章", t: "judgment", q: "乙方即供方(有时也称为卖方)是为顾客提供产品或服务的一方。", o: ["正确", "错误"], a: "正确" },
+            { ch: "第二章", t: "judgment", q: "敏捷项目强调仆人式的管理方式。", o: ["正确", "错误"], a: "正确" },
+            { ch: "第二章", t: "single", q: "以下哪一项不包括在项目章程中?( )", o: ["对项目的确认", "对项目经理的授权", "对项目风险的分析", "项目目标的概述"], a: "对项目风险的分析" },
+            { ch: "第二章", t: "single", q: "PMI人才三角不包括下面哪一项?( )", o: ["技术项目管理", "测试能力", "领导力", "战略和商务管理"], a: "测试能力" },
+
+            // 第三章
+            { ch: "第三章", t: "judgment", q: "瀑布模型不适合短期项目。", o: ["正确", "错误"], a: "错误" },
+            { ch: "第三章", t: "judgment", q: "增量式模型可以避免一次性投资太多带来的风险。", o: ["正确", "错误"], a: "正确" },
+            { ch: "第三章", t: "judgment", q: "V模型适合需求明确且对性能要求严格的项目。", o: ["正确", "错误"], a: "正确" },
+            { ch: "第三章", t: "single", q: "下面哪一项属于预测型生存期模型?( )", o: ["瀑布模型", "增量模型", "Scrum 模型", "原型模型"], a: "瀑布模型" },
+
+            // 第四章
+            { ch: "第四章", t: "judgment", q: "需求规约说明可以包括系统的运行环境。", o: ["正确", "错误"], a: "正确" },
+            { ch: "第四章", t: "judgment", q: "数据流分析方法是一种自下而上逐步求精的分析方法。", o: ["正确", "错误"], a: "错误" },
+            { ch: "第四章", t: "single", q: "用户故事 INVEST准则中“S”的含义是( )。", o: ["独立的", "足够小", "可估计的", "可测试的"], a: "足够小" },
+
+            // 第五章
+            { ch: "第五章", t: "judgment", q: "WBS 提供了项目范围基线。", o: ["正确", "错误"], a: "正确" },
+            { ch: "第五章", t: "single", q: "WBS 之所以重要有以下原因,除了( )。", o: ["确定范围基准", "防止遗漏工作", "为估算提供依据", "确定项目经理"], a: "确定项目经理" },
+
+            // 第六章
+            { ch: "第六章", t: "judgment", q: "故事点估算是一个相对的估算过程。", o: ["正确", "错误"], a: "正确" },
+            { ch: "第六章", t: "single", q: "三点估算选择的三种值不包括如下哪一项?( )", o: ["最可能成本", "最乐观成本", "最悲观成本", "项目经理估算值"], a: "项目经理估算值" },
+
+            // 第七章
+            { ch: "第七章", t: "judgment", q: "在PDM 网络图中,节点表示活动,箭线表示逻辑关系。", o: ["正确", "错误"], a: "正确" },
+            { ch: "第七章", t: "single", q: "下面哪种图示可以表示敏捷项目进度,并且可以表示出剩余任务?( )", o: ["燃起图", "燃尽图", "里程碑图", "网络图"], a: "燃尽图" },
+
+            // 第八章
+            { ch: "第八章", t: "judgment", q: "软件质量是软件满足明确说明或者隐含的需求的程度。", o: ["正确", "错误"], a: "正确" },
+            { ch: "第八章", t: "single", q: "项目质量管理的目标是满足( )的需要。", o: ["老板", "项目经理", "项目", "组织"], a: "项目" },
+
+            // 第九章
+            { ch: "第九章", t: "judgment", q: "有效的项目管理能够控制变化,应对变化。", o: ["正确", "错误"], a: "正确" },
+            { ch: "第九章", t: "single", q: "变更控制主要关注的是( )。", o: ["阻止变更", "标识/提出/管理变更", "管理 SCCB", "客户的想法"], a: "标识/提出/管理变更" },
+
+            // 第十章
+            { ch: "第十章", t: "judgment", q: "责任分配矩阵是明确团队成员角色与职责的有效工具。", o: ["正确", "错误"], a: "正确" },
+            { ch: "第十章", t: "single", q: "在( )组织结构中,项目成员没有安全感。", o: ["职能型", "矩阵型", "项目型", "弱矩阵型"], a: "项目型" },
+
+            // 第十一章
+            { ch: "第十一章", t: "judgment", q: "任何项目都是有风险的。", o: ["正确", "错误"], a: "正确" },
+            { ch: "第十一章", t: "single", q: "下列不属于风险评估方法的是( )。", o: ["盈亏平衡分析", "模拟法", "决策树分析", "二叉树分析"], a: "二叉树分析" },
+
+            // 第十二章
+            { ch: "第十二章", t: "judgment", q: "成本加激励费用(CPIF)合同具有激励机制。", o: ["正确", "错误"], a: "正确" },
+            { ch: "第十二章", t: "single", q: "卖方承担风险最大的合同类型是( )。", o: ["成本加固定费用", "成本加激励费用", "成本加奖金", "固定总价"], a: "固定总价" },
+
+            // 第十三章
+            { ch: "第十三章", t: "judgment", q: "软件项目管理最重要的4个要素是范围、质量、进度、风险。", o: ["正确", "错误"], a: "错误" },
+            { ch: "第十三章", t: "single", q: "各个目标(进度/成本/质量/范围)之间( )。", o: ["相互独立", "相互关联和制约", "进度最重要", "无关"], a: "相互关联和制约" },
+
+            // 第十四章
+            { ch: "第十四章", t: "judgment", q: "累计费用曲线中ACWP比BCWS高,意味着实际成本比计划高。", o: ["正确", "错误"], a: "正确" },
+            { ch: "第十四章", t: "single", q: "如果CPI=90%,则说明( )。", o: ["超出计划90%", "投入1元产生0.9元效果", "完成计划90%", "超支90%"], a: "投入1元产生0.9元效果" },
+
+            // 第十五章
+            { ch: "第十五章", t: "judgment", q: "敏捷生存期模型中的每天站立会议是一种很有效的沟通方式。", o: ["正确", "错误"], a: "正确" },
+            { ch: "第十五章", t: "single", q: "“为什么大家不能都让一步解决这个问题呢?”属于( )解决方法。", o: ["解决问题", "妥协", "强迫方式", "撤退"], a: "妥协" },
+
+            // 第十六章
+            { ch: "第十六章", t: "judgment", q: "只有项目成功完成了,才说明项目结束了。", o: ["正确", "错误"], a: "错误" },
+            { ch: "第十六章", t: "single", q: "软件项目收尾工作不包括( )。", o: ["人员角色选择", "范围确认", "质量验收", "费用决算"], a: "人员角色选择" }
+        ];
+
+        const ALL_QUESTIONS = RAW_DATA.map((item, idx) => ({
+            id: idx, chapter: item.ch, type: item.t, question: item.q, options: item.o, answer: item.a
+        }));
+
+        // --- 主程序 ---
+        function App() {
+            const [view, setView] = useState('menu');
+            const [questions, setQuestions] = useState([]);
+            const [currentIndex, setCurrentIndex] = useState(0);
+            const [selected, setSelected] = useState(null);
+            const [score, setScore] = useState(0);
+            const [history, setHistory] = useState([]);
+            const [title, setTitle] = useState('');
+            const [exitConfirm, setExitConfirm] = useState(false);
+            const [favorites, setFavorites] = useState(() => {
+                const saved = localStorage.getItem('spm_fav_final_v3');
+                return saved ? JSON.parse(saved) : [];
+            });
+
+            useEffect(() => { localStorage.setItem('spm_fav_final_v3', JSON.stringify(favorites)); }, [favorites]);
+
+            const shuffle = (arr) => {
+                const newArr = [...arr];
+                for (let i = newArr.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+                }
+                return newArr;
+            };
+
+            const start = (mode, param) => {
+                let source = [];
+                if (mode === 'all') { source = ALL_QUESTIONS; setTitle('综合模拟测试'); }
+                else if (mode === 'chapter') { source = ALL_QUESTIONS.filter(q => q.chapter === param); setTitle(`${param}专项练习`); }
+                else if (mode === 'fav') { source = ALL_QUESTIONS.filter(q => favorites.includes(q.id)); setTitle('我的收藏本'); }
+
+                if (source.length === 0) { alert("没有找到题目"); return; }
+                const final = shuffle(source).map(q => ({ ...q, options: q.type === 'single' ? shuffle(q.options) : q.options }));
+                setQuestions(final); setView('quiz'); setCurrentIndex(0); setScore(0); setHistory([]); setSelected(null); setExitConfirm(false);
+            };
+
+            const chapters = ["第一章", "第二章", "第三章", "第四章", "第五章", "第六章", "第七章", "第八章", "第九章", "第十章", "第十一章", "第十二章", "第十三章", "第十四章", "第十五章", "第十六章"];
+
+            if (view === 'menu') {
+                return (
+                    <div className="min-h-screen p-4 flex items-center justify-center bg-indigo-50">
+                        <div className="w-full max-w-4xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col md:flex-row animate-in">
+                            <div className="bg-indigo-600 p-12 text-white md:w-1/3 flex flex-col justify-center items-center text-center">
+                                <div className="mb-6 bg-white/20 p-5 rounded-[2rem]"><IconBook /></div>
+                                <h1 className="text-3xl font-black">软件项目管理</h1>
+                                <p className="opacity-70 mt-4 text-sm font-medium">1-16章 全真题库系统</p>
+                            </div>
+                            <div className="p-8 md:w-2/3 overflow-y-auto max-h-[85vh] custom-scrollbar">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
+                                    <button onClick={() => start('all')} className="flex flex-col items-center justify-center p-8 bg-indigo-600 text-white rounded-[2rem] hover:bg-indigo-700 transition shadow-xl">
+                                        <IconPlay /><span className="mt-3 font-bold text-lg">综合模拟测试</span>
+                                    </button>
+                                    <button onClick={() => start('fav')} className="flex flex-col items-center justify-center p-8 bg-white border-2 border-indigo-100 text-indigo-600 rounded-[2rem] hover:border-indigo-400 transition shadow-sm">
+                                        <div className="text-yellow-500"><IconStar filled={true} /></div>
+                                        <span className="mt-3 font-bold text-lg">我的收藏本 ({favorites.length})</span>
+                                    </button>
+                                </div>
+                                <h3 className="font-bold text-slate-800 mb-6 flex items-center">
+                                    <IconList /><span className="ml-2">按章节专项练习</span>
+                                </h3>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    {chapters.map(c => (
+                                        <button key={c} onClick={() => start('chapter', c)} className="text-xs bg-slate-50 border border-slate-200 py-4 rounded-2xl hover:bg-indigo-50 hover:border-indigo-300 transition font-bold text-slate-600">{c}</button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
             }
 
+            if (view === 'result') {
+                const wrong = history.filter(h => !h.isCorrect);
+                return (
+                    <div className="min-h-screen p-4 overflow-y-auto custom-scrollbar bg-slate-50 animate-in">
+                        <div className="max-w-2xl mx-auto bg-white p-10 rounded-[3rem] shadow-xl text-center space-y-8">
+                            <div className="text-yellow-500 flex justify-center transform scale-125"><IconAward /></div>
+                            <h2 className="text-4xl font-black text-slate-800">测试结果</h2>
+                            <div className="inline-block bg-indigo-50 px-12 py-8 rounded-[2.5rem]">
+                                <span className="text-7xl font-black text-indigo-600">{score}</span>
+                                <span className="text-3xl text-indigo-200 mx-3">/</span>
+                                <span className="text-3xl text-indigo-400">{questions.length}</span>
+                            </div>
+                            <button onClick={() => setView('menu')} className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-bold shadow-2xl">返回主菜单</button>
+                            {wrong.length > 0 && (
+                                <div className="text-left border-t pt-10">
+                                    <h3 className="font-black text-red-500 text-xl mb-6 flex items-center"><IconX /> <span className="ml-2">错题解析</span></h3>
+                                    <div className="space-y-4">
+                                        {wrong.map((h, i) => (
+                                            <div key={i} className="p-6 border-2 border-slate-50 rounded-[2rem] space-y-4">
+                                                <p className="font-bold text-slate-800 text-lg leading-relaxed">{h.question.question}</p>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                                                    <div className="bg-red-50 text-red-600 p-4 rounded-2xl font-bold italic">错误选择: {h.selected}</div>
+                                                    <div className="bg-green-50 text-green-700 p-4 rounded-2xl font-bold">正确答案: {h.question.answer}</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            }
+
+            const q = questions[currentIndex];
+            const isFav = favorites.includes(q.id);
+
             return (
-              <button
-                key={idx}
-                onClick={() => handleOptionSelect(option)}
-                disabled={isSelected}
-                className={optionClass}
-              >
-                <div className="flex items-center">
-                  <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center mr-4 font-bold text-sm
-                    ${isSelected && option === currentQ.answer ? 'border-green-600 bg-green-600 text-white' : ''}
-                    ${isSelected && option === selectedOption && option !== currentQ.answer ? 'border-red-500 bg-red-500 text-white' : ''}
-                    ${!isSelected ? 'border-gray-300 text-gray-400 group-hover:border-indigo-500 group-hover:text-indigo-500' : ''}
-                  `}>
-                    {String.fromCharCode(65 + idx)}
-                  </div>
-                  <span className="text-base md:text-lg">{option}</span>
+                <div className="min-h-screen p-4 flex flex-col items-center bg-slate-50">
+                    <div className="w-full max-w-2xl flex justify-between items-center mb-8">
+                        <div className="w-24">
+                            {!exitConfirm ? (
+                                <button onClick={() => setExitConfirm(true)} className="text-slate-400 hover:text-indigo-600 transition"><IconHome /></button>
+                            ) : (
+                                <div className="flex items-center space-x-2 animate-in bg-white p-1 rounded-full shadow-sm">
+                                    <button onClick={() => setView('menu')} className="bg-red-500 text-white text-[10px] px-3 py-1.5 rounded-full font-bold">确认退出</button>
+                                    <button onClick={() => setExitConfirm(false)} className="text-[10px] text-slate-400 font-bold px-2">取消</button>
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex-1 text-center">
+                            <span className="bg-white px-6 py-2 rounded-full shadow-sm text-xs font-black text-indigo-600 border border-indigo-100 uppercase tracking-widest">
+                                {title} {currentIndex + 1}/{questions.length}
+                            </span>
+                        </div>
+                        <div className="w-24 flex justify-end">
+                            <button onClick={() => toggleFavorite(q.id)} className={`transition-transform hover:scale-125 ${isFav ? 'text-yellow-500' : 'text-slate-300'}`}>
+                                <IconStar filled={isFav} />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="w-full max-w-2xl bg-white p-8 md:p-14 rounded-[3rem] shadow-2xl space-y-10 animate-in border-b-[12px] border-indigo-600">
+                        <div className="flex justify-between opacity-20 text-[10px] font-black uppercase tracking-[0.2em]">
+                            <span>{q.chapter}</span>
+                            <span>Q-ID: {q.id}</span>
+                        </div>
+                        <h2 className="text-2xl md:text-3xl font-black text-slate-800 leading-snug min-h-[6rem]">{q.question}</h2>
+                        
+                        <div className="space-y-4">
+                            {q.options.map((opt, idx) => {
+                                const isCorrect = opt === q.answer;
+                                const isWrong = selected === opt && !isCorrect;
+                                const showResult = selected !== null;
+                                
+                                let style = "bg-slate-50 border-slate-100 hover:bg-slate-100";
+                                if (showResult) {
+                                    if (isCorrect) style = "bg-green-100 border-green-500 text-green-800 scale-[1.03] shadow-lg z-10";
+                                    else if (isWrong) style = "bg-red-100 border-red-500 text-red-700";
+                                    else style = "bg-white border-slate-50 opacity-30";
+                                }
+
+                                return (
+                                    <button key={opt} disabled={showResult} onClick={() => setSelected(opt)}
+                                        className={`w-full p-6 text-left rounded-[2rem] border-2 transition-all duration-300 flex items-center group ${style}`}>
+                                        <span className={`w-10 h-10 rounded-full border-2 flex items-center justify-center mr-5 font-black text-sm flex-shrink-0 transition-colors ${showResult ? 'border-transparent' : 'border-indigo-100 text-indigo-300'}`}>
+                                            {showResult && isCorrect ? <IconCheck /> : showResult && isWrong ? <IconX /> : String.fromCharCode(65 + idx)}
+                                        </span>
+                                        <span className="font-bold text-lg leading-tight">{opt}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        
+                        {selected && (
+                            <div className="pt-6">
+                                <button onClick={() => {
+                                    const correct = selected === q.answer;
+                                    if (correct) setScore(s => s + 1);
+                                    setHistory([...history, { question: q, selected, isCorrect: correct }]);
+                                    if (currentIndex < questions.length - 1) { setCurrentIndex(i => i + 1); setSelected(null); setExitConfirm(false); }
+                                    else { setView('result'); }
+                                }} className="w-full bg-indigo-600 text-white py-6 rounded-3xl font-black shadow-2xl hover:bg-indigo-700 transition-all flex items-center justify-center tracking-widest text-lg uppercase">
+                                    <span>{currentIndex < questions.length - 1 ? "下一题 NEXT" : "查看结果 FINISH"}</span>
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                    
+                    <div className="mt-12 w-full max-w-2xl bg-slate-200 h-2 rounded-full overflow-hidden shadow-inner">
+                        <div className="bg-indigo-600 h-full transition-all duration-1000 ease-out" style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}></div>
+                    </div>
                 </div>
-                
-                {isSelected && option === currentQ.answer && <CheckCircle className="w-6 h-6 text-green-600" />}
-                {isSelected && option === selectedOption && option !== currentQ.answer && <XCircle className="w-6 h-6 text-red-600" />}
-              </button>
             );
-          })}
-        </div>
+        }
 
-        {/* Footer Action */}
-        {isSelected && (
-          <div className="p-4 bg-white border-t border-gray-200 flex justify-end animate-in slide-in-from-bottom-2">
-            <button
-              onClick={handleNext}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-lg font-bold flex items-center transition-colors shadow-lg shadow-indigo-200"
-            >
-              {currentQuestionIndex < questions.length - 1 ? '下一题' : '查看结果'}
-              <Play className="w-4 h-4 ml-2 fill-current" />
-            </button>
-          </div>
-        )}
-      </Card>
-    </div>
-  );
-}
-
-export default App;
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
